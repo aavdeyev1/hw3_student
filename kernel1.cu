@@ -35,29 +35,37 @@ __global__ void k1( float* g_dataA, float* g_dataB, int floatpitch, int width)
 			s_data[shared_row*(blockDim.x+2) + threadIdx.x] = g_dataA[ st_col + (i*width) + threadIdx.x];
 			shared_row++;
 		}
-	  }else if (threadIdx.x == blockDim.x || idX == width - 1){//
+	  }
+      else if (threadIdx.x == blockDim.x || idX == width - 1){//
 		    shared_row = 0;
-		    for(int i =mid_row - 1 ; i <= mid_row + 1; i++){			
+		    for(int i = mid_row - 1 ; i <= mid_row + 1; i++){			
 			    s_data[shared_row*(blockDim.x+2)+ 2 + threadIdx.x] = g_dataA[ (st_col + 2) + (i*width) + threadIdx.x];
 			    shared_row++;
 		    }
 	  }
 	//everybody reads 3 elements
-		shared_row = 0;
-		for(int i =mid_row - 1 ; i <= mid_row + 1; i++){			
-			s_data[shared_row*(blockDim.x+2)+ 1 + threadIdx.x] = g_dataA[ (st_col + 1) + (i*width) + threadIdx.x];
-			shared_row++;
-		}
-	
-	
+    shared_row = 0;
+    for(int i =mid_row - 1 ; i <= mid_row + 1; i++){			
+        s_data[shared_row*(blockDim.x+2)+ 1 + threadIdx.x] = g_dataA[ (st_col + 1) + (i*width) + threadIdx.x];
+        shared_row++;
+    }
 	
 	__syncthreads();
 	//sync threads
-	
-	
-	
-	
+    int s_rowwidth = blockDim.x +2;
 	//do the math
+    g_dataB[st_col + 1 + threadIdx.x + width * mid_row] = (                                                        
+    .1*(s_data[threadIdx.x])    +
+    .1*(s_data[threadIdx.x+1])  +
+    .1*(s_data[threadIdx.x+2])  +
+    
+    .1*(s_data[(s_rowwidth*1) + threadIdx.x])      +
+    .2*(s_data[(s_rowwidth*1) + threadIdx.x + 1])  +
+    .1*(s_data[(s_rowwidth*1) + threadIdx.x + 2])  +
+    
+    .1*(s_data[(s_rowwidth*2) + threadIdx.x])      +
+    .1*(s_data[(s_rowwidth*2) + threadIdx.x + 1])  +
+    .1*(s_data[(s_rowwidth*2) + threadIdx.x + 2])    ) * 0.95; 
 	//write the result
 	
 	
