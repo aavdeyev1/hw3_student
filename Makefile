@@ -49,6 +49,7 @@ opt  ?= -m$(BITS)
 dbg  ?= -g -O0
 cuda_dbg ?= -G $(dbg)
 warn ?= -Wall -Werror 
+pie ?= -no-pie
 
 # This is where the cuda runtime libraries and includes can be found
 
@@ -60,7 +61,7 @@ nv_sdk := $(cudaroot)
 
 #----- C compilation options ------
 gcc        := /usr/bin/gcc
-cflags     += $(opt) $(dbg) $(warn)
+cflags     += $(opt) $(dbg) $(warn) $(pie)
 clib_paths :=
 
 cinc_paths := -I $(cudaroot)/samples/common/inc
@@ -69,7 +70,7 @@ clibraries :=
 
 #----- C++ compilation options ------
 gpp         := /usr/bin/g++ 
-ccflags     += $(opt) $(dbg) $(warn)
+ccflags     += $(opt) $(dbg) $(warn) $(pie)
 cclib_paths := 
 ccinc_paths := -I$(cudaroot)/samples/common/inc -I$(nv_sdk)/samples/common/inc 
 cclibraries :=  
@@ -77,7 +78,7 @@ cclibraries :=
 
 #----- CUDA compilation options -----
 nvcc        := $(cudaroot)/bin/nvcc
-cuflags     += $(opt) $(cuda_dbg) 
+cuflags     += $(opt) $(cuda_dbg) $(pie)
 culib_paths := -L$(cudaroot)/$(CUDALIB) -L$(nv_sdk)/C/lib -L$(nv_sdk)/samples/common/lib/$(OSTYPE)  
 cuinc_paths := -I$(cudaroot)/include -I$(nv_sdk)/samples/common/inc 
 culibraries := -lcuda -lcudart 
