@@ -62,7 +62,7 @@ main( int argc, char** argv)
 
    initializeArrays(h_dataA, h_dataB, width, height);
       
-      runSerial(h_dataA, h_dataB, width, height, passes, shouldPrint);
+      //runSerial(h_dataA, h_dataB, width, height, passes, shouldPrint);
 
       runCUDA(h_dataA, h_dataB, width, height, passes, threadsPerBlock, shouldPrint);
    
@@ -124,7 +124,7 @@ void runCUDA( float *h_dataA, float* h_dataB, int width, int height, int passes,
    // int numBlocks =   gridWidth * gridHeight;
    
    // Each block gets a shared memory region of this size.
-   unsigned int shared_mem_size = ((blockWidth + 2) * 4) * sizeof(float); 
+   unsigned int shared_mem_size = ((blockWidth + 2) * 3) * sizeof(float); 
    
    // printf("blockDim.x=%d blockDim.y=%d    grid = %d x %d\n", blockWidth, blockHeight, gridWidth, gridHeight);
    // printf("numBlocks = %d,  threadsPerBlock = %d   shared_mem_size = %d\n", numBlocks, threadsPerBlock,  shared_mem_size);
@@ -192,6 +192,7 @@ void runCUDA( float *h_dataA, float* h_dataB, int width, int height, int passes,
    // k1 kernel
    for(int r=0; r<passes; r++){ 
       //execute the kernel
+      // 
       k1 <<< grid, threads, shared_mem_size >>>( d_dataA, d_dataB, pitch/sizeof(float), width);
       
       // uncomment the following line to use k0, the simple kernel, provived in kernel.cu           

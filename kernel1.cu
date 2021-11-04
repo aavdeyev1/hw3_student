@@ -2,7 +2,7 @@
 #include "kernel1.h"
 
 
-//extern  __shared__  float sdata[];
+extern __shared__  float s_data[];
 
 ////////////////////////////////////////////////////////////////////////////////
 //! Weighted Jacobi Iteration
@@ -13,7 +13,8 @@ __global__ void k1( float* g_dataA, float* g_dataB, int floatpitch, int width) /
 {
 		// use width to disable threads out of array boundry. use floatpitch when doing global memory access.
     extern __shared__ float s_data[];
-		s_data 
+		// __shared__ float q_data[(blockDim.x + 2)*3];
+		//
     // TODO, implement this kernel below
 	
 	//global thread ID's//for reading global mem
@@ -60,21 +61,23 @@ __global__ void k1( float* g_dataA, float* g_dataB, int floatpitch, int width) /
     }
 	
 	__syncthreads();
-	//sync threads
+	// sync threads
     int s_rowwidth = blockDim.x +2;
 	// //do the math
-    g_dataB[st_col + 1 + threadIdx.x + floatpitch * mid_row] = (                                                        
-    .1*(s_data[threadIdx.x])    +
-    .1*(s_data[threadIdx.x+1])  +
-    .1*(s_data[threadIdx.x+2])  +
+		float temp = (                                                        
+    .1f*(s_data[threadIdx.x])    +
+    .1f*(s_data[threadIdx.x+1])  +
+    .1f*(s_data[threadIdx.x+2])  +
     
-    .1*(s_data[(s_rowwidth*1) + threadIdx.x])      +
-    .2*(s_data[(s_rowwidth*1) + threadIdx.x + 1])  +
-    .1*(s_data[(s_rowwidth*1) + threadIdx.x + 2])  +
+    .1f*(s_data[(s_rowwidth*1) + threadIdx.x])      +
+    .2f*(s_data[(s_rowwidth*1) + threadIdx.x + 1])  +
+    .1f*(s_data[(s_rowwidth*1) + threadIdx.x + 2])  +
     
-    .1*(s_data[(s_rowwidth*2) + threadIdx.x])      +
-    .1*(s_data[(s_rowwidth*2) + threadIdx.x + 1])  +
-    .1*(s_data[(s_rowwidth*2) + threadIdx.x + 2])    ) * 0.95; 
-	//write the result   
+    .1f*(s_data[(s_rowwidth*2) + threadIdx.x])      +
+    .1f*(s_data[(s_rowwidth*2) + threadIdx.x + 1])  +
+    .1f*(s_data[(s_rowwidth*2) + threadIdx.x + 2])    ) * 0.95f; 
+
+		g_dataB[st_col + 1 + threadIdx.x + floatpitch * mid_row] = temp; // this part is what is slowing us down 3x as much as k0.
+
 }
 
