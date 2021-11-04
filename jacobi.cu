@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <math.h>
+#include <time.h>
 
 // includes, project
 #include <helper_cuda.h>
@@ -60,14 +61,10 @@ main( int argc, char** argv)
    float * h_dataB= (float *)malloc(width * height * sizeof(float));
 
    initializeArrays(h_dataA, h_dataB, width, height);
-   
-   if (threadsPerBlock == 0){
       
       runSerial(h_dataA, h_dataB, width, height, passes, shouldPrint);
-   } else {
 
       runCUDA(h_dataA, h_dataB, width, height, passes, threadsPerBlock, shouldPrint);
-   }
    
    // Clean up Memory
    free( h_dataA);
@@ -124,13 +121,13 @@ void runCUDA( float *h_dataA, float* h_dataB, int width, int height, int passes,
    int gridHeight = (int) ceil( (height - 2) / (float) blockHeight);
    
    // number of blocks required to process all the data.
-   int numBlocks =   gridWidth * gridHeight;
+   // int numBlocks =   gridWidth * gridHeight;
    
    // Each block gets a shared memory region of this size.
    unsigned int shared_mem_size = ((blockWidth + 2) * 4) * sizeof(float); 
    
-   printf("blockDim.x=%d blockDim.y=%d    grid = %d x %d\n", blockWidth, blockHeight, gridWidth, gridHeight);
-   printf("numBlocks = %d,  threadsPerBlock = %d   shared_mem_size = %d\n", numBlocks, threadsPerBlock,  shared_mem_size);
+   // printf("blockDim.x=%d blockDim.y=%d    grid = %d x %d\n", blockWidth, blockHeight, gridWidth, gridHeight);
+   // printf("numBlocks = %d,  threadsPerBlock = %d   shared_mem_size = %d\n", numBlocks, threadsPerBlock,  shared_mem_size);
    
    if(gridWidth > 65536 || gridHeight > 65536) {
       fprintf(stderr, "****Error: a block dimension is too large.\n");
@@ -157,6 +154,42 @@ void runCUDA( float *h_dataA, float* h_dataB, int width, int height, int passes,
    sdkStartTimer(&timer);
      
    float * temp;
+
+
+   //  long double speedUpTime;
+
+   // k0 kernel
+
+   cudaEvent_t launch_begin, launch_end;
+   cudaEventCreate(&launch_begin);
+   cudaEventCreate(&launch_end); 
+
+   cudaEventRecord(launch_begin,0);    
+   for(int r=0; r<passes; r++){ 
+      //execute the kernel
+      // k1 <<< grid, threads, shared_mem_size >>>( d_dataA, d_dataB, pitch/sizeof(float), width);
+      
+      // uncomment the following line to use k0, the simple kernel, provived in kernel.cu           
+      k0 <<< grid, threads >>>( d_dataA, d_dataB, pitch/sizeof(float), width);
+
+      // swap the device data pointers  
+      temp    = d_dataA;
+      d_dataA = d_dataB;
+      d_dataB = temp;
+   }
+   cudaEventRecord(launch_end,0);
+   cudaEventSynchronize(launch_end);
+
+   float time = 0;
+   cudaEventElapsedTime(&time, launch_begin, launch_end);
+   printf("k0 time: %f\n", time/1000);
+
+   cudaEvent_t launch_begink1, launch_endk1;
+   cudaEventCreate(&launch_begink1);
+   cudaEventCreate(&launch_endk1); 
+
+   cudaEventRecord(launch_begink1,0);    
+   // k1 kernel
    for(int r=0; r<passes; r++){ 
       //execute the kernel
       k1 <<< grid, threads, shared_mem_size >>>( d_dataA, d_dataB, pitch/sizeof(float), width);
@@ -169,8 +202,16 @@ void runCUDA( float *h_dataA, float* h_dataB, int width, int height, int passes,
       d_dataA = d_dataB;
       d_dataB = temp;
    }
-   
-   // check if kernel execution generated an error
+   cudaEventRecord(launch_endk1,0);
+   cudaEventSynchronize(launch_endk1);
+
+   //time = 0;
+   cudaEventElapsedTime(&time, launch_begink1, launch_endk1);
+   time = time/1000;
+
+   printf("k1 time: %f\n", time );
+
+      // check if kernel execution generated an error
    cudaError_t code = cudaGetLastError();
    if (code != cudaSuccess){
        printf ("Cuda Kerel Launch error -- %s\n", cudaGetErrorString(code));
@@ -184,9 +225,10 @@ void runCUDA( float *h_dataA, float* h_dataB, int width, int height, int passes,
    // copy result from device to host
    checkCudaErrors( cudaMemcpy2D( h_dataA, width * sizeof(float), d_dataA, pitch, width * sizeof(float), height,cudaMemcpyDeviceToHost) );
    
-   printArray(h_dataA, height, width, shouldPrint);
-   
-   printf( "Processing time: %f (ms)\n", sdkGetTimerValue(&timer));
+   //printArray(h_dataA, height, width, shouldPrint);
+   float gpuTime = sdkGetTimerValue(&timer);
+   gpuTime = gpuTime/1000;
+   // printf( "Processing time: %f (ms)\n", sdkGetTimerValue(&timer));
    sdkDeleteTimer(&timer);
 
    // cleanup memory
@@ -203,7 +245,7 @@ void runCUDA( float *h_dataA, float* h_dataB, int width, int height, int passes,
  */
 void runSerial( float * h_dataA, float * h_dataB, int width, int height, int passes, int shouldPrint){
 
-   printf("Running Serial Code.\n");
+   // printf("Running Serial Code.\n");
    
    float * serialResult;
    
@@ -220,7 +262,7 @@ void runSerial( float * h_dataA, float * h_dataB, int width, int height, int pas
 
    printArray(serialResult, height, width, shouldPrint);
    
-   printf( "Processing time: %f (ms)\n", sdkGetTimerValue(&timer));
+   // printf( "Processing time: %f (ms)\n", sdkGetTimerValue(&timer));
    sdkDeleteTimer(&timer);
 
 }
@@ -243,8 +285,17 @@ float * serial (float *a1, float*a2, int width, int height, int passes) {
    float * old=a1;
    float * New=a2;
    float * temp;
+
+   clock_t startCPU;
+   double cpuStart;
+   clock_t endCPU;
+   double cpuEnd;
+
+   long double diffCPU;
+
    
-   
+   startCPU = clock();
+   cpuStart = (double) startCPU/CLOCKS_PER_SEC;
    for(p=0; p<passes; p++){
       
       
@@ -271,7 +322,14 @@ float * serial (float *a1, float*a2, int width, int height, int passes) {
       New = old;
       old = temp;
    }
-   
+   endCPU = clock();
+   cpuEnd = (double) endCPU/CLOCKS_PER_SEC;
+   diffCPU = cpuEnd - cpuStart;
+
+   printf("CPU time: %Le\n", diffCPU );
+
+
+   // return diffCPU;
    return old;
 }
 
